@@ -1,0 +1,8 @@
+{
+  "name": "@smart-scanner/backend",
+  "private": true,
+  "scripts": {
+    "dev": "node -e \"console.log('Backend scaffold ready')\"",
+    "typecheck": "tsc -p tsconfig.json --noEmit"
+  }
+}

@@ -1,0 +1,11 @@
+{
+  "name": "@smart-scanner/shared",
+  "private": true,
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc -p tsconfig.json --noEmit"
+  }
+}
+

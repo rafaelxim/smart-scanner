@@ -1,0 +1,8 @@
+{
+  "name": "@smart-scanner/mobile",
+  "private": true,
+  "scripts": {
+    "dev": "node -e \"console.log('Mobile scaffold ready')\"",
+    "typecheck": "tsc -p tsconfig.json --noEmit"
+  }
+}

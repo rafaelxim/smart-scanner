@@ -1,0 +1,13 @@
+{
+  "name": "smart-expense-scanner",
+  "private": true,
+  "packageManager": "pnpm@9.15.4",
+  "scripts": {
+    "dev": "corepack pnpm -r --parallel --if-present dev",
+    "typecheck": "corepack pnpm -r --if-present typecheck",
+    "lint": "corepack pnpm -r --if-present lint"
+  },
+  "devDependencies": {
+    "typescript": "^5.8.3"
+  }
+}

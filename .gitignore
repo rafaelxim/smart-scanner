@@ -1,0 +1,46 @@
+# Dependencies
+node_modules/
+**/node_modules/
+
+# pnpm
+.pnpm-store/
+pnpm-debug.log*
+
+# Build outputs
+dist/
+build/
+coverage/
+out/
+.turbo/
+.next/
+
+# Expo / React Native
+.expo/
+.expo-shared/
+android/
+ios/
+
+# Environment files
+.env
+.env.*
+!.env.example
+
+# Logs
+*.log
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Editor folders
+.vscode/
+.idea/
+
+# SQLite and local data
+*.sqlite
+*.sqlite3
+*.db
+uploads/
+
+# Misc
+*.tsbuildinfo
