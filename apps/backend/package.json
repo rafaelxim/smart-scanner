@@ -3,6 +3,7 @@
   "private": true,
   "scripts": {
     "dev": "node -e \"console.log('Backend scaffold ready')\"",
+    "start": "node src/server.mjs",
     "typecheck": "tsc -p tsconfig.json --noEmit"
   }
 }
