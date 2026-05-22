@@ -2,7 +2,10 @@
   "expo": {
     "name": "Smart Expense Scanner",
     "slug": "smart-expense-scanner",
-    "scheme": "smart-expense-scanner"
+    "scheme": "smart-expense-scanner",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "userInterfaceStyle": "light",
+    "assetBundlePatterns": ["**/*"]
   }
 }
-
