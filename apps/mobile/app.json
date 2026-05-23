@@ -6,6 +6,15 @@
     "version": "1.0.0",
     "orientation": "portrait",
     "userInterfaceStyle": "light",
-    "assetBundlePatterns": ["**/*"]
+    "assetBundlePatterns": ["**/*"],
+    "ios": {
+      "infoPlist": {
+        "NSCameraUsageDescription": "Use the camera to capture receipt images.",
+        "NSPhotoLibraryUsageDescription": "Choose receipt images from your photo library."
+      }
+    },
+    "android": {
+      "permissions": ["CAMERA", "READ_MEDIA_IMAGES"]
+    }
   }
 }
