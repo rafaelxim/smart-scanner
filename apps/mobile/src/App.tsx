@@ -1,13 +1,18 @@
 import { NavigationContainer } from "@react-navigation/native";
 import { createBottomTabNavigator } from "@react-navigation/bottom-tabs";
+import { Ionicons } from "@expo/vector-icons";
 import { StatusBar } from "expo-status-bar";
 import {
   Pressable,
-  SafeAreaView,
   StyleSheet,
   Text,
   View,
 } from "react-native";
+import {
+  SafeAreaProvider,
+  SafeAreaView,
+  useSafeAreaInsets,
+} from "react-native-safe-area-context";
 
 type RootTabParamList = {
   Upload: undefined;
@@ -18,7 +23,7 @@ const Tab = createBottomTabNavigator<RootTabParamList>();
 
 function UploadScreen() {
   return (
-    <SafeAreaView style={styles.screen}>
+    <SafeAreaView edges={["top", "left", "right"]} style={styles.screen}>
       <View style={styles.header}>
         <Text style={styles.eyebrow}>Smart Expense Scanner</Text>
         <Text style={styles.title}>Upload receipt</Text>
@@ -48,7 +53,7 @@ function UploadScreen() {
 
 function HistoryScreen() {
   return (
-    <SafeAreaView style={styles.screen}>
+    <SafeAreaView edges={["top", "left", "right"]} style={styles.screen}>
       <View style={styles.header}>
         <Text style={styles.eyebrow}>Receipts</Text>
         <Text style={styles.title}>History</Text>
@@ -68,23 +73,55 @@ function HistoryScreen() {
   );
 }
 
+function AppTabs() {
+  const insets = useSafeAreaInsets();
+
+  return (
+    <Tab.Navigator
+      screenOptions={{
+        headerShown: false,
+        tabBarActiveTintColor: "#0f766e",
+        tabBarInactiveTintColor: "#64748b",
+        tabBarStyle: [
+          styles.tabBar,
+          {
+            height: 64 + insets.bottom,
+            paddingBottom: Math.max(insets.bottom, 10),
+          },
+        ],
+        tabBarLabelStyle: styles.tabLabel,
+      }}
+    >
+      <Tab.Screen
+        name="Upload"
+        component={UploadScreen}
+        options={{
+          tabBarIcon: ({ color, size }) => (
+            <Ionicons name="cloud-upload-outline" color={color} size={size} />
+          ),
+        }}
+      />
+      <Tab.Screen
+        name="History"
+        component={HistoryScreen}
+        options={{
+          tabBarIcon: ({ color, size }) => (
+            <Ionicons name="receipt-outline" color={color} size={size} />
+          ),
+        }}
+      />
+    </Tab.Navigator>
+  );
+}
+
 export default function App() {
   return (
-    <NavigationContainer>
-      <StatusBar style="dark" />
-      <Tab.Navigator
-        screenOptions={{
-          headerShown: false,
-          tabBarActiveTintColor: "#0f766e",
-          tabBarInactiveTintColor: "#64748b",
-          tabBarStyle: styles.tabBar,
-          tabBarLabelStyle: styles.tabLabel,
-        }}
-      >
-        <Tab.Screen name="Upload" component={UploadScreen} />
-        <Tab.Screen name="History" component={HistoryScreen} />
-      </Tab.Navigator>
-    </NavigationContainer>
+    <SafeAreaProvider>
+      <NavigationContainer>
+        <StatusBar style="dark" />
+        <AppTabs />
+      </NavigationContainer>
+    </SafeAreaProvider>
   );
 }
 
@@ -190,8 +227,6 @@ const styles = StyleSheet.create({
   },
   tabBar: {
     borderTopColor: "#e2e8f0",
-    height: 64,
-    paddingBottom: 10,
     paddingTop: 8,
   },
   tabLabel: {
