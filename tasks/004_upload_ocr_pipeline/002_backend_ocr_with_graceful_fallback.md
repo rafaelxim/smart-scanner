@@ -22,4 +22,3 @@ If OCR fails, the backend should still save the receipt record and return a usab
 - Upload a receipt image that OCR can parse
 - Upload a receipt image that causes OCR failure
 - Confirm both uploads still create receipt records
-

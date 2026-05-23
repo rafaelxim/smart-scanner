@@ -1,85 +1,129 @@
-# Smart Expense Scanner
+# Market Receipt Tracker
 
 ## Product Idea
 
-Smart Expense Scanner is a mobile app that lets users photograph invoices, receipts, or payment proofs and automatically classifies the expense type.
+Market Receipt Tracker is a mobile app that helps a single user control grocery spending by scanning market receipts, reviewing extracted item data, and tracking monthly spending by category.
 
-## How It Works
+The product is focused only on market/grocery receipts. It is not a generic expense scanner.
 
-1. The user takes a photo of a receipt.
+## Core User Goal
+
+The user wants to understand:
+
+- how much they spent in the current month
+- which market categories consume the most money
+- which receipts and items make up that spending
+- how spending changes across months
+
+## Main Flow
+
+1. The user captures or selects a market receipt image in the mobile app.
 2. The app sends the image to the backend.
-3. The backend runs OCR and extracts basic information from the image.
-4. A TensorFlow-based model classifies the expense into one of these categories:
-   - Food
-   - Transport
-   - Health
-   - Education
-   - Home
-   - Business
-5. The app then shows a simple history screen with basic charts.
+3. The backend saves the image temporarily and sends it to OpenAI Vision for structured extraction.
+4. The backend returns extracted receipt data for review.
+5. The user reviews and edits market name, purchase date, total, and item rows.
+6. The user confirms the receipt.
+7. The backend saves the receipt and items in MySQL.
+8. The app shows current-month totals, category breakdowns, receipt history, and receipt details.
 
-## Architecture Decisions
+## Extraction Strategy
 
-### Monorepo
+- Use OpenAI Vision from the backend.
+- Use a strict JSON schema for extraction output.
+- Keep `OPENAI_API_KEY` only in backend environment variables.
+- Do not call OpenAI directly from the mobile app.
+- Remove Tesseract as a product dependency.
+- If OpenAI extraction fails, fail the extraction flow and ask the user to try again.
 
-- Use a single monorepo.
-- Use `pnpm` workspaces.
-- Keep shared code in a dedicated package for API types and domain models only.
+## Categories
 
-### Mobile App
+Categories are fixed in v1 and editable per item during review:
 
-- Use React Native with Expo Managed Workflow.
-- Use TypeScript.
-- Support both camera capture and gallery upload.
-- Focus Day 1 on the upload flow first.
+- Hortifruti
+- Carnes
+- Laticínios
+- Padaria
+- Mercearia
+- Bebidas
+- Congelados
+- Limpeza
+- Higiene
+- Pet
+- Outros
 
-### Backend
+Categories belong to receipt items, not receipts. A receipt can contain items from multiple categories.
+
+## Data Model
+
+The backend uses MySQL through Prisma.
+
+Conceptual entities:
+
+- `receipt_extractions`: temporary extraction attempts, extracted payload, temp image path, status, and expiration timestamp
+- `receipts`: confirmed market receipt, market name, purchase date, official total, final image path, timestamps
+- `receipt_items`: line items from the receipt, original item name, quantity, unit, unit price, total price, item category
+
+Temporary extractions expire after 24 hours. Cleanup is handled by a manual maintenance command.
+
+SQLite is no longer the target persistence layer.
+
+## Review Rules
+
+- The user must review before saving.
+- The review screen must allow editing:
+  - market name
+  - purchase date
+  - official total
+  - item name
+  - quantity
+  - unit
+  - unit price
+  - total price
+  - category
+- Save item rows as they appear on the receipt. Do not merge repeated items on save.
+- Save the original product name only in v1.
+- Store the official receipt total separately from the sum of item totals.
+- Show a warning when the official total and item total sum diverge.
+
+## Mobile App
+
+- Use Expo Managed Workflow with TypeScript.
+- Main screens:
+  - upload receipt
+  - review extracted receipt
+  - current-month dashboard
+  - monthly history
+  - receipt detail with items
+- Use simple visuals first:
+  - cards
+  - horizontal category bars
+  - lists
+- No login in v1.
+- No budget feature in v1.
+
+## Backend
 
 - Use Fastify with TypeScript.
-- Accept uploads through a single combined `multipart/form-data` endpoint.
-- Store receipt data in a single `receipt` table.
-- Include extracted text fields in the schema.
-- Save uploaded image files on disk.
-- Keep OCR in the backend.
-- Use Tesseract.js for OCR.
-- Accept OCR failures gracefully and still save the receipt record.
-- Expose a health check endpoint.
+- Use Prisma with MySQL.
+- Store uploaded images on disk through Docker-mounted storage.
+- Use separate endpoints for extraction and confirmation:
+  - `POST /receipt-extractions`
+  - `POST /receipts`
+- Keep API responses structured and typed through shared TypeScript models.
 
-### Data and Infra
+## Infrastructure
 
-- Use SQLite for persistence.
-- Keep SQLite in the backend container filesystem with a Docker volume for durability.
-- Mount an `uploads/` volume for image persistence.
-- Use Docker and Docker Compose for local development and demo deployment.
-- Include a basic CI workflow that runs install and typecheck.
+- Use a pnpm monorepo.
+- Use Docker Compose for local development.
+- Run backend and MySQL through Docker Compose.
+- Keep the mobile app local through Expo.
+- Document useful commands in `COMMANDS.md`.
 
-### Day 1 Scope
+## Roadmap
 
-- Set up the mobile app, backend, and Docker.
-- Implement the real upload plumbing.
-- Persist uploaded receipts with placeholder classification data.
-- Verify OCR runs in the backend.
-- Keep the flow local-only with no authentication.
-
-## Why It Impresses Recruiters
-
-This project demonstrates:
-
-- Mobile development
-- Backend integration
-- Docker and containerized workflows
-- Image upload handling
-- AI-based classification
-- OCR extraction
-- Data organization
-- Practical UX
-
-## 1-Week Scope
-
-- Day 1: Mobile and backend setup, plus Docker
-- Day 2: Image upload flow
-- Day 3: History screen and manual entry form
-- Day 4: Simple classification model with TensorFlow.js
-- Day 5: App to backend to ML integration
-- Day 6: UI polish, loading states, and error states
-- Day 7: README, screenshots, demo video, and local deployment via Docker
+1. Product reframe and task reorganization
+2. MySQL and Prisma migration
+3. OpenAI receipt extraction
+4. Receipt review and save flow
+5. Dashboard and monthly history
+6. Polish, README, screenshots, and demo flow

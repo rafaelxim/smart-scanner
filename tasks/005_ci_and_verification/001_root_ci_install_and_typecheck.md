@@ -1,23 +1,24 @@
 ## Especificacao
 
-Add a minimal CI workflow that verifies the monorepo can be installed and typechecked.
-Keep the pipeline intentionally small for Day 1.
+Add the baseline CI verification needed for the monorepo.
+The first CI workflow should install dependencies and run TypeScript checks across all packages.
 
 ## Entregavel
 
-- CI workflow file
-- Install step
-- Typecheck step
-- Workspace-wide verification
+- GitHub Actions workflow
+- Root install step
+- Root typecheck step
+- CI documentation in project commands or README
 
 ## Definicao de pronto
 
-- CI runs on the repository without manual intervention
-- CI fails when dependency installation fails
-- CI fails when TypeScript errors are introduced
+- CI runs on pull requests and pushes
+- CI installs from the root lockfile
+- CI runs the root typecheck command
+- Failures are visible in GitHub checks
 
 ## Teste
 
-- Trigger the CI workflow on a branch
-- Confirm the install step and typecheck step both pass
-
+- Run the same install/typecheck commands locally
+- Confirm workflow YAML is valid
+- Confirm CI uses the project package manager version
