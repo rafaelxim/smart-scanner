@@ -8,6 +8,7 @@ import {
   ActivityIndicator,
   Image,
   Pressable,
+  ScrollView,
   StyleSheet,
   Text,
   View,
@@ -29,6 +30,7 @@ const apiBaseUrl = process.env.EXPO_PUBLIC_API_BASE_URL ?? "http://localhost:300
 type UploadState = "idle" | "uploading" | "success" | "error";
 
 function UploadScreen() {
+  const insets = useSafeAreaInsets();
   const [selectedImage, setSelectedImage] =
     useState<ImagePicker.ImagePickerAsset | null>(null);
   const [uploadState, setUploadState] = useState<UploadState>("idle");
@@ -123,126 +125,144 @@ function UploadScreen() {
 
   return (
     <SafeAreaView edges={["top", "left", "right"]} style={styles.screen}>
-      <View style={styles.header}>
-        <Text style={styles.eyebrow}>Smart Expense Scanner</Text>
-        <Text style={styles.title}>Upload receipt</Text>
-        <Text style={styles.subtitle}>
-          Add a receipt image to start the OCR and classification flow.
-        </Text>
-      </View>
-
-      <View style={styles.panel}>
-        <Text style={styles.panelTitle}>Receipt image</Text>
-        <Text style={styles.panelText}>
-          Capture a receipt or choose one from your gallery, then upload it to
-          the backend.
-        </Text>
-
-        {selectedImage ? (
-          <View style={styles.preview}>
-            <Image source={{ uri: selectedImage.uri }} style={styles.previewImage} />
-            <View style={styles.previewDetails}>
-              <Text style={styles.previewTitle} numberOfLines={1}>
-                {selectedImage.fileName ?? "Receipt image"}
-              </Text>
-              <Text style={styles.previewText}>
-                {selectedImage.width} x {selectedImage.height}
-              </Text>
-            </View>
-          </View>
-        ) : (
-          <View style={styles.emptyUpload}>
-            <Ionicons name="image-outline" color="#64748b" size={28} />
-            <Text style={styles.emptyUploadText}>No receipt image selected</Text>
-          </View>
-        )}
-
-        <View style={styles.actions}>
-          <Pressable
-            disabled={isUploading}
-            onPress={chooseImage}
-            style={({ pressed }) => [
-              styles.secondaryButton,
-              pressed && styles.buttonPressed,
-              isUploading && styles.buttonDisabled,
-            ]}
-          >
-            <Ionicons name="images-outline" color="#0f172a" size={18} />
-            <Text style={styles.secondaryButtonText}>Gallery</Text>
-          </Pressable>
-          <Pressable
-            disabled={isUploading}
-            onPress={captureImage}
-            style={({ pressed }) => [
-              styles.secondaryButton,
-              pressed && styles.buttonPressed,
-              isUploading && styles.buttonDisabled,
-            ]}
-          >
-            <Ionicons name="camera-outline" color="#0f172a" size={18} />
-            <Text style={styles.secondaryButtonText}>Camera</Text>
-          </Pressable>
+      <ScrollView
+        contentContainerStyle={[
+          styles.scrollContent,
+          { paddingBottom: 88 + insets.bottom },
+        ]}
+        keyboardShouldPersistTaps="handled"
+      >
+        <View style={styles.header}>
+          <Text style={styles.eyebrow}>Smart Expense Scanner</Text>
+          <Text style={styles.title}>Upload receipt</Text>
+          <Text style={styles.subtitle}>
+            Add a receipt image to start the OCR and classification flow.
+          </Text>
         </View>
 
-        <Pressable
-          disabled={isUploading}
-          onPress={uploadImage}
-          style={({ pressed }) => [
-            styles.primaryButton,
-            pressed && styles.buttonPressed,
-            isUploading && styles.buttonDisabled,
-          ]}
-        >
-          {isUploading ? (
-            <ActivityIndicator color="#ffffff" />
-          ) : (
-            <>
-              <Ionicons name="cloud-upload-outline" color="#ffffff" size={18} />
-              <Text style={styles.primaryButtonText}>Upload receipt</Text>
-            </>
-          )}
-        </Pressable>
+        <View style={styles.panel}>
+          <Text style={styles.panelTitle}>Receipt image</Text>
+          <Text style={styles.panelText}>
+            Capture a receipt or choose one from your gallery, then upload it to
+            the backend.
+          </Text>
 
-        {message ? (
-          <View
-            style={[
-              styles.feedback,
-              uploadState === "success" ? styles.successFeedback : styles.errorFeedback,
-            ]}
-          >
-            <Text
-              style={[
-                styles.feedbackText,
-                uploadState === "success" ? styles.successText : styles.errorText,
+          {selectedImage ? (
+            <View style={styles.preview}>
+              <Image source={{ uri: selectedImage.uri }} style={styles.previewImage} />
+              <View style={styles.previewDetails}>
+                <Text style={styles.previewTitle} numberOfLines={1}>
+                  {selectedImage.fileName ?? "Receipt image"}
+                </Text>
+                <Text style={styles.previewText}>
+                  {selectedImage.width} x {selectedImage.height}
+                </Text>
+              </View>
+            </View>
+          ) : (
+            <View style={styles.emptyUpload}>
+              <Ionicons name="image-outline" color="#64748b" size={28} />
+              <Text style={styles.emptyUploadText}>No receipt image selected</Text>
+            </View>
+          )}
+
+          <View style={styles.actions}>
+            <Pressable
+              disabled={isUploading}
+              onPress={chooseImage}
+              style={({ pressed }) => [
+                styles.secondaryButton,
+                pressed && styles.buttonPressed,
+                isUploading && styles.buttonDisabled,
               ]}
             >
-              {message}
-            </Text>
+              <Ionicons name="images-outline" color="#0f172a" size={18} />
+              <Text style={styles.secondaryButtonText}>Gallery</Text>
+            </Pressable>
+            <Pressable
+              disabled={isUploading}
+              onPress={captureImage}
+              style={({ pressed }) => [
+                styles.secondaryButton,
+                pressed && styles.buttonPressed,
+                isUploading && styles.buttonDisabled,
+              ]}
+            >
+              <Ionicons name="camera-outline" color="#0f172a" size={18} />
+              <Text style={styles.secondaryButtonText}>Camera</Text>
+            </Pressable>
           </View>
-        ) : null}
-      </View>
+
+          <Pressable
+            disabled={isUploading}
+            onPress={uploadImage}
+            style={({ pressed }) => [
+              styles.primaryButton,
+              pressed && styles.buttonPressed,
+              isUploading && styles.buttonDisabled,
+            ]}
+          >
+            {isUploading ? (
+              <ActivityIndicator color="#ffffff" />
+            ) : (
+              <>
+                <Ionicons name="cloud-upload-outline" color="#ffffff" size={18} />
+                <Text style={styles.primaryButtonText}>Upload receipt</Text>
+              </>
+            )}
+          </Pressable>
+
+          {message ? (
+            <View
+              style={[
+                styles.feedback,
+                uploadState === "success" ? styles.successFeedback : styles.errorFeedback,
+              ]}
+            >
+              <Text
+                selectable
+                style={[
+                  styles.feedbackText,
+                  uploadState === "success" ? styles.successText : styles.errorText,
+                ]}
+              >
+                {message}
+              </Text>
+            </View>
+          ) : null}
+        </View>
+      </ScrollView>
     </SafeAreaView>
   );
 }
 
 function HistoryScreen() {
+  const insets = useSafeAreaInsets();
+
   return (
     <SafeAreaView edges={["top", "left", "right"]} style={styles.screen}>
-      <View style={styles.header}>
-        <Text style={styles.eyebrow}>Receipts</Text>
-        <Text style={styles.title}>History</Text>
-        <Text style={styles.subtitle}>
-          Saved receipt records will appear here after uploads are connected.
-        </Text>
-      </View>
+      <ScrollView
+        contentContainerStyle={[
+          styles.scrollContent,
+          { paddingBottom: 88 + insets.bottom },
+        ]}
+      >
+        <View style={styles.header}>
+          <Text style={styles.eyebrow}>Receipts</Text>
+          <Text style={styles.title}>History</Text>
+          <Text style={styles.subtitle}>
+            Saved receipt records will appear here after uploads are connected.
+          </Text>
+        </View>
 
-      <View style={styles.emptyState}>
-        <Text style={styles.emptyTitle}>No receipts yet</Text>
-        <Text style={styles.emptyText}>
-          Uploaded receipts will show their category, extracted merchant, and
-          total.
-        </Text>
-      </View>
+        <View style={styles.emptyState}>
+          <Text style={styles.emptyTitle}>No receipts yet</Text>
+          <Text style={styles.emptyText}>
+            Uploaded receipts will show their category, extracted merchant, and
+            total.
+          </Text>
+        </View>
+      </ScrollView>
     </SafeAreaView>
   );
 }
@@ -303,6 +323,8 @@ const styles = StyleSheet.create({
   screen: {
     flex: 1,
     backgroundColor: "#f8fafc",
+  },
+  scrollContent: {
     paddingHorizontal: 20,
     paddingTop: 32,
   },

@@ -1,11 +1,14 @@
 import Fastify, { type FastifyInstance } from "fastify";
 import { pathToFileURL } from "node:url";
 import { initializeDatabase, openDatabase } from "./database.js";
+import { ReceiptRepository } from "./receipts.js";
+import { registerUploadRoutes } from "./uploads.js";
 
 export interface BackendConfig {
   host: string;
   port: number;
   sqliteDbPath: string;
+  uploadsDir: string;
 }
 
 export function getBackendConfig(env: NodeJS.ProcessEnv = process.env): BackendConfig {
@@ -13,10 +16,16 @@ export function getBackendConfig(env: NodeJS.ProcessEnv = process.env): BackendC
     host: env.BACKEND_HOST ?? "0.0.0.0",
     port: Number(env.BACKEND_PORT ?? "3000"),
     sqliteDbPath: env.SQLITE_DB_PATH ?? "data/smart-scanner.sqlite",
+    uploadsDir: env.UPLOADS_DIR ?? "uploads",
   };
 }
 
-export function buildApp(): FastifyInstance {
+export interface BuildAppOptions {
+  receiptRepository?: ReceiptRepository;
+  uploadsDir?: string;
+}
+
+export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyInstance> {
   const app = Fastify({
     logger: true,
   });
@@ -26,15 +35,23 @@ export function buildApp(): FastifyInstance {
     service: "smart-scanner-backend",
   }));
 
+  if (options.receiptRepository && options.uploadsDir) {
+    await registerUploadRoutes(app, {
+      receiptRepository: options.receiptRepository,
+      uploadsDir: options.uploadsDir,
+    });
+  }
+
   return app;
 }
 
 export async function startServer(): Promise<void> {
-  const { host, port, sqliteDbPath } = getBackendConfig();
+  const { host, port, sqliteDbPath, uploadsDir } = getBackendConfig();
   const database = openDatabase(sqliteDbPath);
   initializeDatabase(database);
+  const receiptRepository = new ReceiptRepository(database);
 
-  const app = buildApp();
+  const app = await buildApp({ receiptRepository, uploadsDir });
   app.addHook("onClose", async () => {
     database.close();
   });
