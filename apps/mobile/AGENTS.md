@@ -10,7 +10,7 @@ Target structure:
 
 ```text
 src/
-  app/
+  application/
     navigation/
   features/
     upload/
@@ -46,7 +46,7 @@ RootStack
 Keep route types centralized:
 
 ```text
-src/app/navigation/types.ts
+src/application/navigation/types.ts
 ```
 
 Use typed route param lists such as `RootStackParamList` and `MainTabParamList`.
