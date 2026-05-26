@@ -38,6 +38,18 @@ Show running Compose services:
 docker compose ps
 ```
 
+Open a MySQL shell inside the database container:
+
+```bash
+docker compose exec mysql mysql -u smart_scanner -p smart_scanner
+```
+
+Check MySQL health from Compose:
+
+```bash
+docker compose ps mysql
+```
+
 Stop and remove containers and the Compose network:
 
 ```bash
@@ -80,27 +92,4 @@ Check the backend health endpoint:
 
 ```bash
 curl http://localhost:3000/health
-```
-
-## SQLite
-
-Copy a SQLite snapshot from the backend container:
-
-```bash
-docker compose cp backend:/data/smart-scanner.sqlite ./smart-scanner.sqlite
-```
-
-Open the copied snapshot with the SQLite CLI:
-
-```bash
-sqlite3 ./smart-scanner.sqlite
-```
-
-Useful SQLite shell commands:
-
-```sql
-.tables
-.schema receipts
-SELECT * FROM receipts;
-.quit
 ```
