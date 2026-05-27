@@ -93,3 +93,48 @@ Check the backend health endpoint:
 ```bash
 curl http://localhost:3000/health
 ```
+
+## Prisma
+
+Generate the Prisma client:
+
+```bash
+pnpm --filter @smart-scanner/backend prisma:generate
+```
+
+Run local Prisma migrations against MySQL:
+
+```bash
+DATABASE_URL=mysql://root:smart_scanner_root_password@localhost:3306/smart_scanner pnpm --filter @smart-scanner/backend exec prisma migrate dev --config prisma.config.ts
+```
+
+Inspect migration status:
+
+```bash
+DATABASE_URL=mysql://root:smart_scanner_root_password@localhost:3306/smart_scanner pnpm --filter @smart-scanner/backend exec prisma migrate status --config prisma.config.ts
+```
+
+## SQLite
+
+SQLite is legacy baseline storage. New backend database work should use MySQL through `DATABASE_URL`.
+
+Copy a SQLite snapshot from the backend container:
+
+```bash
+docker compose cp backend:/data/smart-scanner.sqlite ./smart-scanner.sqlite
+```
+
+Open the copied snapshot with the SQLite CLI:
+
+```bash
+sqlite3 ./smart-scanner.sqlite
+```
+
+Useful SQLite shell commands:
+
+```sql
+.tables
+.schema receipts
+SELECT * FROM receipts;
+.quit
+```

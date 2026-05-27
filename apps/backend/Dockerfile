@@ -13,6 +13,7 @@ RUN pnpm install --frozen-lockfile
 COPY apps/backend apps/backend
 COPY packages/shared packages/shared
 
+RUN pnpm --filter @smart-scanner/backend prisma:generate
 RUN pnpm --filter @smart-scanner/backend build
 
 EXPOSE 3000

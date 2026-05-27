@@ -1,0 +1,85 @@
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "mysql"
+}
+
+enum ReceiptExtractionStatus {
+  PENDING   @map("pending")
+  COMPLETED @map("completed")
+  FAILED    @map("failed")
+  EXPIRED   @map("expired")
+  CONFIRMED @map("confirmed")
+}
+
+enum ReceiptItemCategory {
+  HORTIFRUTI @map("Hortifruti")
+  CARNES     @map("Carnes")
+  LATICINIOS @map("Laticínios")
+  PADARIA    @map("Padaria")
+  MERCEARIA  @map("Mercearia")
+  BEBIDAS    @map("Bebidas")
+  CONGELADOS @map("Congelados")
+  LIMPEZA    @map("Limpeza")
+  HIGIENE    @map("Higiene")
+  PET        @map("Pet")
+  OUTROS     @map("Outros")
+}
+
+model ReceiptExtraction {
+  id                    String                  @id @default(uuid()) @db.VarChar(36)
+  status                ReceiptExtractionStatus @default(PENDING)
+  tempImagePath         String                  @map("temp_image_path") @db.VarChar(1024)
+  imageOriginalFilename String                  @map("image_original_filename") @db.VarChar(255)
+  imageMimeType         String                  @map("image_mime_type") @db.VarChar(100)
+  imageSizeBytes        Int                     @map("image_size_bytes")
+  extractedPayload      Json?                   @map("extracted_payload")
+  errorCode             String?                 @map("error_code") @db.VarChar(100)
+  errorMessage          String?                 @map("error_message") @db.Text
+  expiresAt             DateTime                @map("expires_at")
+  confirmedReceiptId    String?                 @unique @map("confirmed_receipt_id") @db.VarChar(36)
+  confirmedReceipt      Receipt?                @relation(fields: [confirmedReceiptId], references: [id])
+  createdAt             DateTime                @default(now()) @map("created_at")
+  updatedAt             DateTime                @updatedAt @map("updated_at")
+
+  @@index([status])
+  @@index([expiresAt])
+  @@map("receipt_extractions")
+}
+
+model Receipt {
+  id                       String             @id @default(uuid()) @db.VarChar(36)
+  marketName               String             @map("market_name") @db.VarChar(255)
+  purchaseDate             DateTime           @map("purchase_date") @db.Date
+  officialTotalAmountCents Int                @map("official_total_amount_cents")
+  imagePath                String             @map("image_path") @db.VarChar(1024)
+  createdAt                DateTime           @default(now()) @map("created_at")
+  updatedAt                DateTime           @updatedAt @map("updated_at")
+  items                    ReceiptItem[]
+  extraction               ReceiptExtraction?
+
+  @@index([purchaseDate])
+  @@map("receipts")
+}
+
+model ReceiptItem {
+  id                   String              @id @default(uuid()) @db.VarChar(36)
+  receiptId            String              @map("receipt_id") @db.VarChar(36)
+  receipt              Receipt             @relation(fields: [receiptId], references: [id], onDelete: Cascade)
+  position             Int
+  originalName         String              @map("original_name") @db.VarChar(255)
+  quantity             Decimal?            @db.Decimal(10, 3)
+  unit                 String?             @db.VarChar(50)
+  unitPriceAmountCents Int?                @map("unit_price_amount_cents")
+  totalAmountCents     Int                 @map("total_amount_cents")
+  category             ReceiptItemCategory
+  createdAt            DateTime            @default(now()) @map("created_at")
+  updatedAt            DateTime            @updatedAt @map("updated_at")
+
+  @@index([receiptId])
+  @@index([category])
+  @@map("receipt_items")
+}
