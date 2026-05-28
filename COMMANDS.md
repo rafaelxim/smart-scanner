@@ -88,6 +88,18 @@ Start the backend locally in watch mode:
 pnpm --filter @smart-scanner/backend dev
 ```
 
+Clean expired temporary receipt extractions and their temp image files:
+
+```bash
+pnpm --filter @smart-scanner/backend cleanup:expired-extractions
+```
+
+Run the same cleanup inside the backend container:
+
+```bash
+docker compose exec backend pnpm --filter @smart-scanner/backend cleanup:expired-extractions
+```
+
 Check the backend health endpoint:
 
 ```bash

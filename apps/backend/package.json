@@ -4,6 +4,7 @@
   "type": "module",
   "scripts": {
     "build": "tsc -p tsconfig.json",
+    "cleanup:expired-extractions": "tsx src/scripts/cleanupExpiredReceiptExtractions.ts",
     "dev": "tsx watch src/index.ts",
     "prisma:generate": "prisma generate --config prisma.config.ts",
     "prisma:migrate": "prisma migrate dev --config prisma.config.ts",
