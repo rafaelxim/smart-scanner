@@ -69,8 +69,6 @@ The target model is MySQL/Prisma with these conceptual entities:
 
 Temporary extractions expire after 24 hours. Cleanup is handled by a manual maintenance command.
 
-SQLite exists only as legacy baseline work and should be removed by the MySQL migration tasks.
-
 ## Review Rules
 
 - The user must review before saving.

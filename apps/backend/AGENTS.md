@@ -125,7 +125,7 @@ Rules:
 - repositories may use Prisma
 - transactions are coordinated by services when one use case changes multiple related records
 
-SQLite is legacy baseline code and should not be expanded.
+MySQL through Prisma is the active backend persistence layer.
 
 ## Transactions
 
@@ -395,25 +395,23 @@ When tests are introduced later:
 - OpenAI calls should be mocked or fake
 - repository tests are only required for complex queries
 
-## Legacy And Migration Notes
+## Migration Notes
 
-The current backend still contains legacy baseline code:
+The backend persistence runtime has moved from SQLite to MySQL through Prisma. Do not reintroduce `node:sqlite`, SQLite volumes, or SQLite inspection commands.
 
-- SQLite via `node:sqlite`
-- a simple `ReceiptRepository`
-- `POST /receipts` upload flow
-- old OCR-oriented receipt columns
+The temporary compatibility upload route still exists:
 
-Do not expand that architecture.
+```text
+POST /receipts
+```
 
-Planned direction:
+It should be replaced by the product flow in later tasks:
 
-- replace SQLite with MySQL and Prisma
-- replace direct upload-to-receipt flow with:
-  - `POST /receipt-extractions`
-  - `POST /receipts/confirm`
-- remove OCR/Tesseract direction
-- keep OpenAI Vision extraction in backend
-- keep review-before-save as the main product flow
+```text
+POST /receipt-extractions
+POST /receipts/confirm
+```
+
+Do not reintroduce OCR/Tesseract direction. Keep OpenAI Vision extraction in the backend and keep review-before-save as the main product flow.
 
 Source files in `src/` are the reference. Compiled files in `dist/` should not guide architecture decisions.
