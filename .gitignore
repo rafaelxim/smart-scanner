@@ -36,7 +36,7 @@ Thumbs.db
 .vscode/
 .idea/
 
-# SQLite and local data
+# Local database snapshots and uploaded files
 *.sqlite
 *.sqlite3
 *.db

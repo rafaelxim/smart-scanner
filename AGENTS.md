@@ -37,7 +37,7 @@ The user wants to understand:
 - Extraction output: strict JSON schema.
 - `OPENAI_API_KEY` must stay only in backend environment variables.
 - Mobile must never call OpenAI directly.
-- Tesseract is no longer the target extraction strategy.
+- OpenAI Vision is the only planned receipt extraction strategy.
 - No login in v1.
 - No budget feature in v1.
 

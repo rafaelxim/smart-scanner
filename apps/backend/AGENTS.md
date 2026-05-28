@@ -412,6 +412,6 @@ POST /receipt-extractions
 POST /receipts/confirm
 ```
 
-Do not reintroduce OCR/Tesseract direction. Keep OpenAI Vision extraction in the backend and keep review-before-save as the main product flow.
+OpenAI Vision extraction must stay in the backend, and review-before-save remains the main product flow.
 
 Source files in `src/` are the reference. Compiled files in `dist/` should not guide architecture decisions.

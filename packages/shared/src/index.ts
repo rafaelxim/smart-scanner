@@ -1,29 +1,34 @@
-export type ExpenseCategory =
-  | "Food"
-  | "Transport"
-  | "Health"
-  | "Education"
-  | "Home"
-  | "Business";
+export type ReceiptItemCategory =
+  | "Hortifruti"
+  | "Carnes"
+  | "Laticínios"
+  | "Padaria"
+  | "Mercearia"
+  | "Bebidas"
+  | "Congelados"
+  | "Limpeza"
+  | "Higiene"
+  | "Pet"
+  | "Outros";
 
-export type ReceiptClassification = ExpenseCategory | "Unclassified";
+export type ReceiptExtractionStatus = "pending" | "completed" | "failed" | "expired" | "confirmed";
 
-export interface ReceiptRecord {
+export interface ReceiptExtractionRecord {
   id: string;
-  imagePath: string;
-  imageFilename: string;
+  status: ReceiptExtractionStatus;
+  imageOriginalFilename: string;
   imageMimeType: string;
   imageSizeBytes: number;
-  extractedText: string | null;
-  extractedMerchantName: string | null;
-  extractedPurchasedAt: string | null;
-  extractedTotalAmountCents: number | null;
-  category: ReceiptClassification;
+  extractedPayload: unknown | null;
+  errorCode: string | null;
+  errorMessage: string | null;
+  expiresAt: string;
+  confirmedReceiptId: string | null;
   createdAt: string;
   updatedAt: string;
 }
 
 export interface UploadReceiptResponse {
-  receipt: ReceiptRecord;
-  ocrStatus: "ok" | "failed";
+  receiptExtraction: ReceiptExtractionRecord;
+  extractionStatus: "failed";
 }
