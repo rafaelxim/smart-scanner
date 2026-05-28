@@ -1,11 +1,14 @@
 import multipart from "@fastify/multipart";
+import type { MultipartFile } from "@fastify/multipart";
 import type { FastifyInstance } from "fastify";
 import { createWriteStream } from "node:fs";
-import { mkdir } from "node:fs/promises";
+import { mkdir, unlink } from "node:fs/promises";
 import { basename, extname, join } from "node:path";
 import { pipeline } from "node:stream/promises";
 import { randomUUID } from "node:crypto";
 import { ReceiptItemCategory } from "@prisma/client";
+import { OpenAIConfigurationError } from "./shared/openai/client.js";
+import { ReceiptExtractionError } from "./features/receipt-extractions/service.js";
 import type { ReceiptExtractionService } from "./features/receipt-extractions/service.js";
 import type { ReceiptService } from "./features/receipts/service.js";
 import type { ConfirmReceiptInput } from "./features/receipts/types.js";
@@ -30,45 +33,86 @@ export async function registerUploadRoutes(
   });
 
   app.post("/receipts", async (request, reply) => {
-    const file = await request.file();
+    try {
+      const file = await request.file();
 
-    if (!file) {
-      return reply.code(400).send({ error: "receipt_file_required" });
+      const uploadedFile = await storeReceiptImageFile(file, uploadsDir, "receipt");
+
+      const receiptExtraction = await receiptExtractionService.createUploadFallbackExtraction({
+        tempImagePath: uploadedFile.storedPath,
+        imageOriginalFilename: uploadedFile.originalFilename,
+        imageMimeType: uploadedFile.mimeType,
+        imageSizeBytes: uploadedFile.sizeBytes,
+      });
+
+      return reply.code(201).send({
+        receiptExtraction,
+        extractionStatus: "failed",
+      });
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "receipt_upload_failed";
+
+      if (message === "receipt_file_required" || message === "invalid_file_field") {
+        return reply.code(400).send({ error: message });
+      }
+
+      if (message === "unsupported_media_type") {
+        return reply.code(415).send({ error: message });
+      }
+
+      request.log.error(error);
+      return reply.code(500).send({ error: "receipt_upload_failed" });
     }
+  });
 
-    if (file.fieldname !== "receipt") {
-      await file.file.resume();
-      return reply.code(400).send({ error: "invalid_file_field" });
+  app.post("/receipt-extractions", async (request, reply) => {
+    let uploadedFile: StoredReceiptImageFile | null = null;
+
+    try {
+      const file = await request.file();
+      uploadedFile = await storeReceiptImageFile(file, uploadsDir, "receipt");
+
+      const receiptExtraction = await receiptExtractionService.extractReceiptFromImage({
+        tempImagePath: uploadedFile.storedPath,
+        imageOriginalFilename: uploadedFile.originalFilename,
+        imageMimeType: uploadedFile.mimeType,
+        imageSizeBytes: uploadedFile.sizeBytes,
+      });
+
+      return reply.code(201).send({
+        extractionId: receiptExtraction.id,
+        receipt: receiptExtraction.extractedPayload,
+        receiptExtraction,
+      });
+    } catch (error) {
+      if (uploadedFile) {
+        await unlink(uploadedFile.storedPath).catch((cleanupError) => {
+          request.log.error(cleanupError, "failed to clean receipt extraction temp file");
+        });
+      }
+
+      if (error instanceof OpenAIConfigurationError) {
+        return reply.code(503).send({ error: "openai_not_configured" });
+      }
+
+      if (error instanceof ReceiptExtractionError) {
+        request.log.error(error);
+        return reply.code(502).send({ error: error.code });
+      }
+
+      const message = error instanceof Error ? error.message : "receipt_extraction_failed";
+
+      if (message === "receipt_file_required" || message === "invalid_file_field") {
+        return reply.code(400).send({ error: message });
+      }
+
+      if (message === "unsupported_media_type") {
+        return reply.code(415).send({ error: message });
+      }
+
+      request.log.error(error);
+      return reply.code(500).send({ error: "receipt_extraction_failed" });
     }
-
-    if (!file.mimetype.startsWith("image/")) {
-      await file.file.resume();
-      return reply.code(415).send({ error: "unsupported_media_type" });
-    }
-
-    const originalFilename = basename(file.filename || "receipt.jpg");
-    const extension = extname(originalFilename) || ".jpg";
-    const storedFilename = `${randomUUID()}${extension}`;
-    const storedPath = join(uploadsDir, storedFilename);
-
-    let imageSizeBytes = 0;
-    file.file.on("data", (chunk: Buffer) => {
-      imageSizeBytes += chunk.length;
-    });
-
-    await pipeline(file.file, createWriteStream(storedPath));
-
-    const receiptExtraction = await receiptExtractionService.createUploadFallbackExtraction({
-      tempImagePath: storedPath,
-      imageOriginalFilename: originalFilename,
-      imageMimeType: file.mimetype,
-      imageSizeBytes,
-    });
-
-    return reply.code(201).send({
-      receiptExtraction,
-      extractionStatus: "failed",
-    });
   });
 
   app.post("/receipts/confirm", async (request, reply) => {
@@ -111,6 +155,52 @@ export async function registerUploadRoutes(
       return reply.code(400).send({ error: "receipt_confirm_failed" });
     }
   });
+}
+
+interface StoredReceiptImageFile {
+  originalFilename: string;
+  mimeType: string;
+  sizeBytes: number;
+  storedPath: string;
+}
+
+async function storeReceiptImageFile(
+  file: MultipartFile | undefined,
+  uploadsDir: string,
+  expectedFieldName: string,
+): Promise<StoredReceiptImageFile> {
+  if (!file) {
+    throw new Error("receipt_file_required");
+  }
+
+  if (file.fieldname !== expectedFieldName) {
+    await file.file.resume();
+    throw new Error("invalid_file_field");
+  }
+
+  if (!file.mimetype.startsWith("image/")) {
+    await file.file.resume();
+    throw new Error("unsupported_media_type");
+  }
+
+  const originalFilename = basename(file.filename || "receipt.jpg");
+  const extension = extname(originalFilename) || ".jpg";
+  const storedFilename = `${randomUUID()}${extension}`;
+  const storedPath = join(uploadsDir, storedFilename);
+
+  let sizeBytes = 0;
+  file.file.on("data", (chunk: Buffer) => {
+    sizeBytes += chunk.length;
+  });
+
+  await pipeline(file.file, createWriteStream(storedPath));
+
+  return {
+    originalFilename,
+    mimeType: file.mimetype,
+    sizeBytes,
+    storedPath,
+  };
 }
 
 function parseConfirmReceiptBody(body: unknown): ConfirmReceiptInput {

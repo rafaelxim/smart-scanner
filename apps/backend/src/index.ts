@@ -8,6 +8,8 @@ import { createPrismaClient, type AppPrismaClient } from "./shared/database/pris
 import { registerUploadRoutes } from "./uploads.js";
 
 export interface BuildAppOptions {
+  openaiApiKey?: string;
+  openaiReceiptExtractionModel?: string;
   prisma?: AppPrismaClient;
   uploadsDir?: string;
 }
@@ -24,7 +26,10 @@ export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyIn
 
   if (options.prisma && options.uploadsDir) {
     const receiptExtractionRepository = new ReceiptExtractionRepository(options.prisma);
-    const receiptExtractionService = new ReceiptExtractionService(receiptExtractionRepository);
+    const receiptExtractionService = new ReceiptExtractionService(receiptExtractionRepository, {
+      apiKey: options.openaiApiKey,
+      model: options.openaiReceiptExtractionModel ?? "gpt-5-mini",
+    });
     const receiptService = new ReceiptService(options.prisma);
 
     await registerUploadRoutes(app, {
@@ -38,10 +43,16 @@ export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyIn
 }
 
 export async function startServer(): Promise<void> {
-  const { databaseUrl, host, port, uploadsDir } = getBackendConfig();
+  const { databaseUrl, host, openaiApiKey, openaiReceiptExtractionModel, port, uploadsDir } =
+    getBackendConfig();
   const prisma = createPrismaClient(databaseUrl);
 
-  const app = await buildApp({ prisma, uploadsDir });
+  const app = await buildApp({
+    openaiApiKey,
+    openaiReceiptExtractionModel,
+    prisma,
+    uploadsDir,
+  });
   app.addHook("onClose", async () => {
     await prisma.$disconnect();
   });
