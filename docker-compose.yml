@@ -35,6 +35,8 @@ services:
       BACKEND_HOST: "0.0.0.0"
       BACKEND_PORT: "${BACKEND_PORT:-3000}"
       DATABASE_URL: "mysql://${MYSQL_USER:-smart_scanner}:${MYSQL_PASSWORD:-smart_scanner_password}@mysql:3306/${MYSQL_DATABASE:-smart_scanner}"
+      OPENAI_API_KEY: "${OPENAI_API_KEY:-}"
+      OPENAI_RECEIPT_EXTRACTION_MODEL: "${OPENAI_RECEIPT_EXTRACTION_MODEL:-gpt-5-mini}"
       UPLOADS_DIR: "${UPLOADS_DIR:-/uploads}"
     volumes:
       - uploads_data:/uploads

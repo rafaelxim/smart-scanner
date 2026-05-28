@@ -253,7 +253,8 @@ Use typed, validated config.
 
 Rules:
 
-- validate required values such as `DATABASE_URL` and `OPENAI_API_KEY`
+- validate startup-required values such as `DATABASE_URL`
+- make OpenAI extraction fail clearly when `OPENAI_API_KEY` is missing
 - define local defaults for `BACKEND_HOST`, `BACKEND_PORT`, upload directories, and upload limits
 - keep `OPENAI_API_KEY` only in backend environment variables
 - do not read `process.env` directly from routes, services, repositories, or shared clients
