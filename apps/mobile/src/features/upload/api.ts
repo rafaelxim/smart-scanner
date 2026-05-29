@@ -1,3 +1,4 @@
+import type { ExtractedReceiptResponse } from "@smart-scanner/shared";
 import { apiFetch } from "../../shared/api/client";
 
 interface UploadReceiptInput {
@@ -6,7 +7,9 @@ interface UploadReceiptInput {
   uri: string;
 }
 
-export async function uploadReceiptImage(input: UploadReceiptInput): Promise<void> {
+export async function uploadReceiptImage(
+  input: UploadReceiptInput,
+): Promise<ExtractedReceiptResponse> {
   const formData = new FormData();
 
   formData.append("receipt", {
@@ -15,8 +18,10 @@ export async function uploadReceiptImage(input: UploadReceiptInput): Promise<voi
     type: input.mimeType ?? "image/jpeg",
   } as unknown as Blob);
 
-  await apiFetch("/receipts", {
+  const response = await apiFetch("/receipt-extractions", {
     method: "POST",
     body: formData,
   });
+
+  return response.json() as Promise<ExtractedReceiptResponse>;
 }

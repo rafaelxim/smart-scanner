@@ -1,6 +1,11 @@
+import type { ExtractedReceiptPayload } from "@smart-scanner/shared";
+
 export type RootStackParamList = {
   MainTabs: undefined;
-  ReviewReceipt: undefined;
+  ReviewReceipt: {
+    extractionId: string;
+    receipt: ExtractedReceiptPayload;
+  };
   ReceiptDetail: undefined;
 };
 

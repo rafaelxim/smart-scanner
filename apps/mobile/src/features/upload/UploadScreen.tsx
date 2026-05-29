@@ -1,8 +1,11 @@
 import { Ionicons } from "@expo/vector-icons";
+import { useNavigation } from "@react-navigation/native";
+import type { NavigationProp } from "@react-navigation/native";
 import * as ImagePicker from "expo-image-picker";
 import { useState } from "react";
 import { Image, StyleSheet, Text, View } from "react-native";
 import { uploadReceiptImage } from "./api";
+import type { RootStackParamList } from "../../application/navigation/types";
 import { getErrorMessage } from "../../shared/api/client";
 import { Button } from "../../shared/components/Button";
 import { Card } from "../../shared/components/Card";
@@ -13,6 +16,7 @@ import { colors, radii, spacing, typography } from "../../shared/styles/tokens";
 type UploadState = "idle" | "uploading" | "success" | "error";
 
 export function UploadScreen() {
+  const navigation = useNavigation<NavigationProp<RootStackParamList>>();
   const [selectedImage, setSelectedImage] =
     useState<ImagePicker.ImagePickerAsset | null>(null);
   const [uploadState, setUploadState] = useState<UploadState>("idle");
@@ -75,14 +79,15 @@ export function UploadScreen() {
     setMessage(null);
 
     try {
-      await uploadReceiptImage({
+      const extractedReceipt = await uploadReceiptImage({
         fileName: selectedImage.fileName,
         mimeType: selectedImage.mimeType,
         uri: selectedImage.uri,
       });
 
       setUploadState("success");
-      setMessage("Receipt uploaded successfully.");
+      setMessage("Receipt extracted successfully.");
+      navigation.navigate("ReviewReceipt", extractedReceipt);
     } catch (error) {
       setUploadState("error");
       setMessage(getErrorMessage(error));

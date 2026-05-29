@@ -4,6 +4,7 @@ import { createBottomTabNavigator } from "@react-navigation/bottom-tabs";
 import { createNativeStackNavigator } from "@react-navigation/native-stack";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { HistoryScreen } from "../../features/history/HistoryScreen";
+import { ReviewReceiptScreen } from "../../features/review/ReviewReceiptScreen";
 import { UploadScreen } from "../../features/upload/UploadScreen";
 import { colors } from "../../shared/styles/tokens";
 import type { MainTabParamList, RootStackParamList } from "./types";
@@ -59,6 +60,7 @@ export function AppNavigator() {
     <NavigationContainer>
       <RootStack.Navigator screenOptions={{ headerShown: false }}>
         <RootStack.Screen name="MainTabs" component={MainTabs} />
+        <RootStack.Screen name="ReviewReceipt" component={ReviewReceiptScreen} />
       </RootStack.Navigator>
     </NavigationContainer>
   );
