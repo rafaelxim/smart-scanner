@@ -1,5 +1,9 @@
 import { ReceiptItemCategory } from "@prisma/client";
 import type { AppPrismaClient } from "../../shared/database/prisma.js";
+import type {
+  PromotedReceiptImage,
+  ReceiptImageStorage,
+} from "../../shared/storage/receiptImages.js";
 import {
   findReceiptExtractionForConfirmation,
   markReceiptExtractionConfirmed,
@@ -10,48 +14,66 @@ import type { ConfirmReceiptInput, ReceiptRecord } from "./types.js";
 const categoryValues = new Set<string>(Object.values(ReceiptItemCategory));
 
 export class ReceiptService {
-  constructor(private readonly prisma: AppPrismaClient) {}
+  constructor(
+    private readonly prisma: AppPrismaClient,
+    private readonly receiptImageStorage: ReceiptImageStorage,
+  ) {}
 
   async confirmReceipt(input: ConfirmReceiptInput): Promise<ReceiptRecord> {
     validateConfirmReceiptInput(input);
+    let promotedImage: PromotedReceiptImage | null = null;
 
-    return this.prisma.$transaction(async (tx) => {
-      const now = new Date();
-      const extraction = await findReceiptExtractionForConfirmation(tx, input.extractionId);
+    try {
+      return await this.prisma.$transaction(async (tx) => {
+        const now = new Date();
+        const extraction = await findReceiptExtractionForConfirmation(tx, input.extractionId);
 
-      if (!extraction) {
-        throw new Error("receipt_extraction_not_found");
-      }
+        if (!extraction) {
+          throw new Error("receipt_extraction_not_found");
+        }
 
-      if (extraction.status === "CONFIRMED" || extraction.confirmedReceiptId) {
-        throw new Error("receipt_extraction_already_confirmed");
-      }
+        if (extraction.status === "CONFIRMED" || extraction.confirmedReceiptId) {
+          throw new Error("receipt_extraction_already_confirmed");
+        }
 
-      if (extraction.status !== "COMPLETED") {
-        throw new Error("receipt_extraction_not_completed");
-      }
+        if (extraction.status !== "COMPLETED") {
+          throw new Error("receipt_extraction_not_completed");
+        }
 
-      if (extraction.expiresAt <= now) {
-        throw new Error("receipt_extraction_expired");
-      }
+        if (extraction.expiresAt <= now) {
+          throw new Error("receipt_extraction_expired");
+        }
 
-      const receipt = await createConfirmedReceipt(tx, {
-        ...input,
-        imagePath: extraction.tempImagePath,
+        promotedImage = await this.receiptImageStorage.promoteTemporaryReceiptImage(
+          extraction.tempImagePath,
+        );
+
+        const receipt = await createConfirmedReceipt(tx, {
+          ...input,
+          imagePath: promotedImage.finalImagePath,
+        });
+        const markedConfirmed = await markReceiptExtractionConfirmed(
+          tx,
+          input.extractionId,
+          receipt.id,
+          now,
+        );
+
+        if (!markedConfirmed) {
+          throw new Error("receipt_extraction_not_confirmable");
+        }
+
+        return receipt;
       });
-      const markedConfirmed = await markReceiptExtractionConfirmed(
-        tx,
-        input.extractionId,
-        receipt.id,
-        now,
-      );
-
-      if (!markedConfirmed) {
-        throw new Error("receipt_extraction_not_confirmable");
+    } catch (error) {
+      if (promotedImage) {
+        await this.receiptImageStorage.restorePromotedReceiptImage(promotedImage).catch(() => {
+          // The database transaction has rolled back; leave the original error intact.
+        });
       }
 
-      return receipt;
-    });
+      throw error;
+    }
   }
 }
 

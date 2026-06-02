@@ -5,6 +5,7 @@ import { ReceiptExtractionRepository } from "./features/receipt-extractions/repo
 import { ReceiptExtractionService } from "./features/receipt-extractions/service.js";
 import { ReceiptService } from "./features/receipts/service.js";
 import { createPrismaClient, type AppPrismaClient } from "./shared/database/prisma.js";
+import { ReceiptImageStorage } from "./shared/storage/receiptImages.js";
 import { registerUploadRoutes } from "./uploads.js";
 
 export interface BuildAppOptions {
@@ -30,7 +31,8 @@ export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyIn
       apiKey: options.openaiApiKey,
       model: options.openaiReceiptExtractionModel ?? "gpt-5-mini",
     });
-    const receiptService = new ReceiptService(options.prisma);
+    const receiptImageStorage = new ReceiptImageStorage(options.uploadsDir);
+    const receiptService = new ReceiptService(options.prisma, receiptImageStorage);
 
     await registerUploadRoutes(app, {
       receiptExtractionService,
