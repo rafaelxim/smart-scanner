@@ -1,6 +1,10 @@
-import type { ReceiptExtraction, ReceiptExtractionStatus } from "@prisma/client";
+import type { ReceiptExtraction } from "@prisma/client";
 import type { AppPrismaClient, PrismaTransaction } from "../../shared/database/prisma.js";
-import type { CreateReceiptExtractionInput, ReceiptExtractionRecord } from "./types.js";
+import type {
+  CreateReceiptExtractionInput,
+  ReceiptExtractionConfirmationRecord,
+  ReceiptExtractionRecord,
+} from "./types.js";
 
 type PrismaExecutor = AppPrismaClient | PrismaTransaction;
 
@@ -52,26 +56,40 @@ export async function markReceiptExtractionConfirmed(
   prisma: PrismaExecutor,
   id: string,
   confirmedReceiptId: string,
-): Promise<void> {
-  await prisma.receiptExtraction.update({
-    where: { id },
+  now: Date,
+): Promise<boolean> {
+  const result = await prisma.receiptExtraction.updateMany({
+    where: {
+      id,
+      status: "COMPLETED",
+      confirmedReceiptId: null,
+      expiresAt: {
+        gt: now,
+      },
+    },
     data: {
       status: "CONFIRMED",
       confirmedReceiptId,
     },
   });
+
+  return result.count === 1;
 }
 
-export async function getReceiptExtractionStatus(
+export async function findReceiptExtractionForConfirmation(
   prisma: PrismaExecutor,
   id: string,
-): Promise<ReceiptExtractionStatus | null> {
-  const extraction = await prisma.receiptExtraction.findUnique({
-    select: { status: true },
+): Promise<ReceiptExtractionConfirmationRecord | null> {
+  return prisma.receiptExtraction.findUnique({
+    select: {
+      id: true,
+      status: true,
+      tempImagePath: true,
+      expiresAt: true,
+      confirmedReceiptId: true,
+    },
     where: { id },
   });
-
-  return extraction?.status ?? null;
 }
 
 function mapReceiptExtraction(extraction: ReceiptExtraction): ReceiptExtractionRecord {

@@ -1,13 +1,18 @@
-import type { Receipt, ReceiptItem } from "@prisma/client";
+import { ReceiptItemCategory, type Receipt, type ReceiptItem } from "@prisma/client";
 import type { AppPrismaClient, PrismaTransaction } from "../../shared/database/prisma.js";
-import type { ConfirmReceiptInput, ReceiptItemRecord, ReceiptRecord } from "./types.js";
+import type {
+  CreateConfirmedReceiptInput,
+  ReceiptItemCategoryName,
+  ReceiptItemRecord,
+  ReceiptRecord,
+} from "./types.js";
 
 type PrismaExecutor = AppPrismaClient | PrismaTransaction;
 
 export class ReceiptRepository {
   constructor(private readonly prisma: AppPrismaClient) {}
 
-  createConfirmed(input: ConfirmReceiptInput): Promise<ReceiptRecord> {
+  createConfirmed(input: CreateConfirmedReceiptInput): Promise<ReceiptRecord> {
     return createConfirmedReceipt(this.prisma, input);
   }
 
@@ -18,7 +23,7 @@ export class ReceiptRepository {
 
 export async function createConfirmedReceipt(
   prisma: PrismaExecutor,
-  input: ConfirmReceiptInput,
+  input: CreateConfirmedReceiptInput,
 ): Promise<ReceiptRecord> {
   const receipt = await prisma.receipt.create({
     data: {
@@ -89,8 +94,22 @@ function mapReceiptItem(item: ReceiptItem): ReceiptItemRecord {
     unit: item.unit,
     unitPriceAmountCents: item.unitPriceAmountCents,
     totalAmountCents: item.totalAmountCents,
-    category: item.category,
+    category: receiptItemCategoryDisplayNames[item.category],
     createdAt: item.createdAt.toISOString(),
     updatedAt: item.updatedAt.toISOString(),
   };
 }
+
+const receiptItemCategoryDisplayNames: Record<ReceiptItemCategory, ReceiptItemCategoryName> = {
+  [ReceiptItemCategory.HORTIFRUTI]: "Hortifruti",
+  [ReceiptItemCategory.CARNES]: "Carnes",
+  [ReceiptItemCategory.LATICINIOS]: "Laticínios",
+  [ReceiptItemCategory.PADARIA]: "Padaria",
+  [ReceiptItemCategory.MERCEARIA]: "Mercearia",
+  [ReceiptItemCategory.BEBIDAS]: "Bebidas",
+  [ReceiptItemCategory.CONGELADOS]: "Congelados",
+  [ReceiptItemCategory.LIMPEZA]: "Limpeza",
+  [ReceiptItemCategory.HIGIENE]: "Higiene",
+  [ReceiptItemCategory.PET]: "Pet",
+  [ReceiptItemCategory.OUTROS]: "Outros",
+};

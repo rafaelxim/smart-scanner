@@ -1,5 +1,18 @@
 import type { ReceiptItemCategory } from "@prisma/client";
 
+export type ReceiptItemCategoryName =
+  | "Hortifruti"
+  | "Carnes"
+  | "Laticínios"
+  | "Padaria"
+  | "Mercearia"
+  | "Bebidas"
+  | "Congelados"
+  | "Limpeza"
+  | "Higiene"
+  | "Pet"
+  | "Outros";
+
 export interface ConfirmReceiptItemInput {
   originalName: string;
   quantity?: string | number | null;
@@ -10,12 +23,15 @@ export interface ConfirmReceiptItemInput {
 }
 
 export interface ConfirmReceiptInput {
-  extractionId?: string | null;
+  extractionId: string;
   marketName: string;
   purchaseDate: string;
   officialTotalAmountCents: number;
-  imagePath: string;
   items: ConfirmReceiptItemInput[];
+}
+
+export interface CreateConfirmedReceiptInput extends ConfirmReceiptInput {
+  imagePath: string;
 }
 
 export interface ReceiptItemRecord {
@@ -26,7 +42,7 @@ export interface ReceiptItemRecord {
   unit: string | null;
   unitPriceAmountCents: number | null;
   totalAmountCents: number;
-  category: ReceiptItemCategory;
+  category: ReceiptItemCategoryName;
   createdAt: string;
   updatedAt: string;
 }

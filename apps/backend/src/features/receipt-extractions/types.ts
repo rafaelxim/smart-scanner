@@ -15,6 +15,14 @@ export interface ReceiptExtractionRecord {
   updatedAt: string;
 }
 
+export interface ReceiptExtractionConfirmationRecord {
+  id: string;
+  status: ReceiptExtractionStatus;
+  tempImagePath: string;
+  expiresAt: Date;
+  confirmedReceiptId: string | null;
+}
+
 export interface CreateReceiptExtractionInput {
   status: ReceiptExtractionStatus;
   tempImagePath: string;

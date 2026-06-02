@@ -32,39 +32,6 @@ export async function registerUploadRoutes(
     },
   });
 
-  app.post("/receipts", async (request, reply) => {
-    try {
-      const file = await request.file();
-
-      const uploadedFile = await storeReceiptImageFile(file, uploadsDir, "receipt");
-
-      const receiptExtraction = await receiptExtractionService.createUploadFallbackExtraction({
-        tempImagePath: uploadedFile.storedPath,
-        imageOriginalFilename: uploadedFile.originalFilename,
-        imageMimeType: uploadedFile.mimeType,
-        imageSizeBytes: uploadedFile.sizeBytes,
-      });
-
-      return reply.code(201).send({
-        receiptExtraction,
-        extractionStatus: "failed",
-      });
-    } catch (error) {
-      const message = error instanceof Error ? error.message : "receipt_upload_failed";
-
-      if (message === "receipt_file_required" || message === "invalid_file_field") {
-        return reply.code(400).send({ error: message });
-      }
-
-      if (message === "unsupported_media_type") {
-        return reply.code(415).send({ error: message });
-      }
-
-      request.log.error(error);
-      return reply.code(500).send({ error: "receipt_upload_failed" });
-    }
-  });
-
   app.post("/receipt-extractions", async (request, reply) => {
     let uploadedFile: StoredReceiptImageFile | null = null;
 
@@ -115,7 +82,7 @@ export async function registerUploadRoutes(
     }
   });
 
-  app.post("/receipts/confirm", async (request, reply) => {
+  app.post("/receipts", async (request, reply) => {
     try {
       const input = parseConfirmReceiptBody(request.body);
       const receipt = await receiptService.confirmReceipt(input);
@@ -125,13 +92,14 @@ export async function registerUploadRoutes(
       const message = error instanceof Error ? error.message : "receipt_confirm_failed";
       const publicBadRequestErrors = new Set([
         "invalid_request_body",
+        "extraction_id_required",
         "market_name_required",
         "invalid_purchase_date",
         "invalid_official_total_amount_cents",
-        "image_path_required",
         "receipt_items_required",
         "invalid_receipt_item",
         "item_original_name_required",
+        "invalid_item_unit_price_amount_cents",
         "invalid_item_total_amount_cents",
         "invalid_item_category",
         "invalid_string",
@@ -143,7 +111,12 @@ export async function registerUploadRoutes(
         return reply.code(404).send({ error: message });
       }
 
-      if (message === "receipt_extraction_not_completed") {
+      if (
+        message === "receipt_extraction_already_confirmed" ||
+        message === "receipt_extraction_expired" ||
+        message === "receipt_extraction_not_completed" ||
+        message === "receipt_extraction_not_confirmable"
+      ) {
         return reply.code(409).send({ error: message });
       }
 
@@ -208,14 +181,14 @@ function parseConfirmReceiptBody(body: unknown): ConfirmReceiptInput {
     throw new Error("invalid_request_body");
   }
 
-  const items = Array.isArray(body.items) ? body.items : [];
+  const receipt = isRecord(body.receipt) ? body.receipt : body;
+  const items = Array.isArray(receipt.items) ? receipt.items : [];
 
   return {
-    extractionId: getOptionalString(body.extractionId),
-    marketName: getRequiredString(body.marketName),
-    purchaseDate: getRequiredString(body.purchaseDate),
-    officialTotalAmountCents: getRequiredInteger(body.officialTotalAmountCents),
-    imagePath: getRequiredString(body.imagePath),
+    extractionId: getRequiredString(body.extractionId),
+    marketName: getRequiredString(receipt.marketName),
+    purchaseDate: getRequiredString(receipt.purchaseDate),
+    officialTotalAmountCents: getRequiredInteger(receipt.officialTotalAmountCents),
     items: items.map((item) => {
       if (!isRecord(item)) {
         throw new Error("invalid_receipt_item");
@@ -242,7 +215,7 @@ function parseReceiptItemCategory(value: unknown): ReceiptItemCategory {
     return ReceiptItemCategory[value as keyof typeof ReceiptItemCategory];
   }
 
-  const category = Object.values(ReceiptItemCategory).find((itemCategory) => itemCategory === value);
+  const category = receiptItemCategoryByDisplayName[value];
 
   if (!category) {
     throw new Error("invalid_item_category");
@@ -298,3 +271,17 @@ function getOptionalQuantity(value: unknown): string | number | null {
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
 }
+
+const receiptItemCategoryByDisplayName: Record<string, ReceiptItemCategory> = {
+  Hortifruti: ReceiptItemCategory.HORTIFRUTI,
+  Carnes: ReceiptItemCategory.CARNES,
+  Laticínios: ReceiptItemCategory.LATICINIOS,
+  Padaria: ReceiptItemCategory.PADARIA,
+  Mercearia: ReceiptItemCategory.MERCEARIA,
+  Bebidas: ReceiptItemCategory.BEBIDAS,
+  Congelados: ReceiptItemCategory.CONGELADOS,
+  Limpeza: ReceiptItemCategory.LIMPEZA,
+  Higiene: ReceiptItemCategory.HIGIENE,
+  Pet: ReceiptItemCategory.PET,
+  Outros: ReceiptItemCategory.OUTROS,
+};

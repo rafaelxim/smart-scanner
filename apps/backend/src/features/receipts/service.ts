@@ -1,7 +1,7 @@
 import { ReceiptItemCategory } from "@prisma/client";
 import type { AppPrismaClient } from "../../shared/database/prisma.js";
 import {
-  getReceiptExtractionStatus,
+  findReceiptExtractionForConfirmation,
   markReceiptExtractionConfirmed,
 } from "../receipt-extractions/repository.js";
 import { createConfirmedReceipt } from "./repository.js";
@@ -16,22 +16,38 @@ export class ReceiptService {
     validateConfirmReceiptInput(input);
 
     return this.prisma.$transaction(async (tx) => {
-      if (input.extractionId) {
-        const status = await getReceiptExtractionStatus(tx, input.extractionId);
+      const now = new Date();
+      const extraction = await findReceiptExtractionForConfirmation(tx, input.extractionId);
 
-        if (!status) {
-          throw new Error("receipt_extraction_not_found");
-        }
-
-        if (status !== "COMPLETED") {
-          throw new Error("receipt_extraction_not_completed");
-        }
+      if (!extraction) {
+        throw new Error("receipt_extraction_not_found");
       }
 
-      const receipt = await createConfirmedReceipt(tx, input);
+      if (extraction.status === "CONFIRMED" || extraction.confirmedReceiptId) {
+        throw new Error("receipt_extraction_already_confirmed");
+      }
 
-      if (input.extractionId) {
-        await markReceiptExtractionConfirmed(tx, input.extractionId, receipt.id);
+      if (extraction.status !== "COMPLETED") {
+        throw new Error("receipt_extraction_not_completed");
+      }
+
+      if (extraction.expiresAt <= now) {
+        throw new Error("receipt_extraction_expired");
+      }
+
+      const receipt = await createConfirmedReceipt(tx, {
+        ...input,
+        imagePath: extraction.tempImagePath,
+      });
+      const markedConfirmed = await markReceiptExtractionConfirmed(
+        tx,
+        input.extractionId,
+        receipt.id,
+        now,
+      );
+
+      if (!markedConfirmed) {
+        throw new Error("receipt_extraction_not_confirmable");
       }
 
       return receipt;
@@ -40,6 +56,10 @@ export class ReceiptService {
 }
 
 function validateConfirmReceiptInput(input: ConfirmReceiptInput): void {
+  if (!input.extractionId.trim()) {
+    throw new Error("extraction_id_required");
+  }
+
   if (!input.marketName.trim()) {
     throw new Error("market_name_required");
   }
@@ -52,8 +72,8 @@ function validateConfirmReceiptInput(input: ConfirmReceiptInput): void {
     throw new Error("invalid_official_total_amount_cents");
   }
 
-  if (!input.imagePath.trim()) {
-    throw new Error("image_path_required");
+  if (input.officialTotalAmountCents < 0) {
+    throw new Error("invalid_official_total_amount_cents");
   }
 
   if (input.items.length === 0) {
@@ -65,7 +85,27 @@ function validateConfirmReceiptInput(input: ConfirmReceiptInput): void {
       throw new Error("item_original_name_required");
     }
 
+    if (
+      item.quantity !== null &&
+      item.quantity !== undefined &&
+      (Number(item.quantity) < 0 || !Number.isFinite(Number(item.quantity)))
+    ) {
+      throw new Error("invalid_quantity");
+    }
+
+    if (
+      item.unitPriceAmountCents !== null &&
+      item.unitPriceAmountCents !== undefined &&
+      (!Number.isInteger(item.unitPriceAmountCents) || item.unitPriceAmountCents < 0)
+    ) {
+      throw new Error("invalid_item_unit_price_amount_cents");
+    }
+
     if (!Number.isInteger(item.totalAmountCents)) {
+      throw new Error("invalid_item_total_amount_cents");
+    }
+
+    if (item.totalAmountCents < 0) {
       throw new Error("invalid_item_total_amount_cents");
     }
 
