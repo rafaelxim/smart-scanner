@@ -1,6 +1,6 @@
 import { Ionicons } from "@expo/vector-icons";
 import type { NativeStackScreenProps } from "@react-navigation/native-stack";
-import type { ReceiptItemCategory } from "@smart-scanner/shared";
+import type { ConfirmReceiptRequest, ReceiptItemCategory } from "@smart-scanner/shared";
 import { receiptItemCategories } from "@smart-scanner/shared";
 import { useMemo, useState } from "react";
 import {
@@ -12,9 +12,13 @@ import {
   View,
 } from "react-native";
 import type { RootStackParamList } from "../../application/navigation/types";
+import { ApiError, getErrorMessage } from "../../shared/api/client";
+import { Button } from "../../shared/components/Button";
 import { Card } from "../../shared/components/Card";
+import { ErrorMessage } from "../../shared/components/ErrorMessage";
 import { Screen } from "../../shared/components/Screen";
 import { colors, radii, spacing, typography } from "../../shared/styles/tokens";
+import { confirmReceipt } from "./api";
 
 type ReviewReceiptScreenProps = NativeStackScreenProps<
   RootStackParamList,
@@ -49,6 +53,8 @@ export function ReviewReceiptScreen({ navigation, route }: ReviewReceiptScreenPr
       category: item.category,
     })),
   );
+  const [isSaving, setIsSaving] = useState(false);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
   const officialTotalCents = parseMoneyInput(officialTotal);
   const itemTotalCents = useMemo(
@@ -67,11 +73,37 @@ export function ReviewReceiptScreen({ navigation, route }: ReviewReceiptScreenPr
     );
   }
 
+  async function handleConfirmReceipt() {
+    if (isSaving) {
+      return;
+    }
+
+    setIsSaving(true);
+    setErrorMessage(null);
+
+    try {
+      const request = buildConfirmReceiptRequest({
+        extractionId,
+        marketName,
+        purchaseDate,
+        officialTotal,
+        items,
+      });
+
+      await confirmReceipt(request);
+      navigation.popToTop();
+    } catch (error) {
+      setErrorMessage(getConfirmReceiptErrorMessage(error));
+      setIsSaving(false);
+    }
+  }
+
   return (
     <Screen keyboardShouldPersistTaps="handled">
       <View style={styles.header}>
         <Pressable
           accessibilityLabel="Back"
+          disabled={isSaving}
           hitSlop={10}
           onPress={() => navigation.goBack()}
           style={styles.backButton}
@@ -87,18 +119,21 @@ export function ReviewReceiptScreen({ navigation, route }: ReviewReceiptScreenPr
       <Card>
         <Text style={styles.sectionTitle}>Receipt</Text>
         <Field
+          editable={!isSaving}
           label="Market name"
           onChangeText={setMarketName}
           placeholder="Market name"
           value={marketName}
         />
         <Field
+          editable={!isSaving}
           label="Purchase date"
           onChangeText={setPurchaseDate}
           placeholder="YYYY-MM-DD"
           value={purchaseDate}
         />
         <Field
+          editable={!isSaving}
           keyboardType="decimal-pad"
           label="Official total"
           onChangeText={setOfficialTotal}
@@ -142,6 +177,7 @@ export function ReviewReceiptScreen({ navigation, route }: ReviewReceiptScreenPr
           </View>
 
           <Field
+            editable={!isSaving}
             label="Product name"
             onChangeText={(value) => updateItem(item.id, { originalName: value })}
             placeholder="Product name"
@@ -150,6 +186,7 @@ export function ReviewReceiptScreen({ navigation, route }: ReviewReceiptScreenPr
 
           <View style={styles.itemGrid}>
             <Field
+              editable={!isSaving}
               keyboardType="decimal-pad"
               label="Quantity"
               onChangeText={(value) => updateItem(item.id, { quantity: value })}
@@ -158,6 +195,7 @@ export function ReviewReceiptScreen({ navigation, route }: ReviewReceiptScreenPr
               value={item.quantity}
             />
             <Field
+              editable={!isSaving}
               label="Unit"
               onChangeText={(value) => updateItem(item.id, { unit: value })}
               placeholder="un"
@@ -168,6 +206,7 @@ export function ReviewReceiptScreen({ navigation, route }: ReviewReceiptScreenPr
 
           <View style={styles.itemGrid}>
             <Field
+              editable={!isSaving}
               keyboardType="decimal-pad"
               label="Unit price"
               onChangeText={(value) => updateItem(item.id, { unitPrice: value })}
@@ -176,6 +215,7 @@ export function ReviewReceiptScreen({ navigation, route }: ReviewReceiptScreenPr
               value={item.unitPrice}
             />
             <Field
+              editable={!isSaving}
               keyboardType="decimal-pad"
               label="Total"
               onChangeText={(value) => updateItem(item.id, { total: value })}
@@ -197,6 +237,7 @@ export function ReviewReceiptScreen({ navigation, route }: ReviewReceiptScreenPr
 
                 return (
                   <Pressable
+                    disabled={isSaving}
                     key={category}
                     onPress={() => updateItem(item.id, { category })}
                     style={[
@@ -219,11 +260,24 @@ export function ReviewReceiptScreen({ navigation, route }: ReviewReceiptScreenPr
           </ScrollView>
         </Card>
       ))}
+
+      <View style={styles.footer}>
+        <Button
+          icon={<Ionicons name="checkmark-circle-outline" color={colors.surface} size={18} />}
+          loading={isSaving}
+          onPress={handleConfirmReceipt}
+        >
+          Confirm receipt
+        </Button>
+
+        {errorMessage ? <ErrorMessage message={errorMessage} /> : null}
+      </View>
     </Screen>
   );
 }
 
 interface FieldProps {
+  editable?: boolean;
   keyboardType?: "default" | "decimal-pad";
   label: string;
   onChangeText: (value: string) => void;
@@ -233,6 +287,7 @@ interface FieldProps {
 }
 
 function Field({
+  editable = true,
   keyboardType = "default",
   label,
   onChangeText,
@@ -245,6 +300,7 @@ function Field({
       <Text style={styles.fieldLabel}>{label}</Text>
       <TextInput
         autoCapitalize="none"
+        editable={editable}
         keyboardType={keyboardType}
         onChangeText={onChangeText}
         placeholder={placeholder}
@@ -283,6 +339,128 @@ function parseMoneyInput(value: string): number | null {
 
   return Math.round(parsed * 100);
 }
+
+function parseQuantityInput(value: string): string | number | null {
+  const normalized = value.trim().replace(",", ".");
+
+  if (!normalized) {
+    return null;
+  }
+
+  const parsed = Number(normalized);
+
+  if (!Number.isFinite(parsed) || parsed < 0) {
+    throw new Error("Enter a valid quantity for each edited item.");
+  }
+
+  return normalized;
+}
+
+function normalizeOptionalString(value: string): string | null {
+  const normalized = value.trim();
+  return normalized ? normalized : null;
+}
+
+function buildConfirmReceiptRequest(input: {
+  extractionId: string;
+  marketName: string;
+  purchaseDate: string;
+  officialTotal: string;
+  items: EditableReceiptItem[];
+}): ConfirmReceiptRequest {
+  const marketName = input.marketName.trim();
+  const purchaseDate = input.purchaseDate.trim();
+  const officialTotalAmountCents = parseMoneyInput(input.officialTotal);
+
+  if (!marketName) {
+    throw new Error("Enter the market name before confirming.");
+  }
+
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(purchaseDate)) {
+    throw new Error("Enter the purchase date in YYYY-MM-DD format.");
+  }
+
+  if (officialTotalAmountCents === null || officialTotalAmountCents < 0) {
+    throw new Error("Enter a valid official total before confirming.");
+  }
+
+  if (input.items.length === 0) {
+    throw new Error("Add at least one receipt item before confirming.");
+  }
+
+  return {
+    extractionId: input.extractionId,
+    receipt: {
+      marketName,
+      purchaseDate,
+      officialTotalAmountCents,
+      items: input.items.map((item) => {
+        const originalName = item.originalName.trim();
+        const totalAmountCents = parseMoneyInput(item.total);
+        const unitPriceAmountCents = parseMoneyInput(item.unitPrice);
+
+        if (!originalName) {
+          throw new Error("Each receipt item needs a product name.");
+        }
+
+        if (totalAmountCents === null || totalAmountCents < 0) {
+          throw new Error("Enter a valid total for each receipt item.");
+        }
+
+        if (unitPriceAmountCents !== null && unitPriceAmountCents < 0) {
+          throw new Error("Enter valid unit prices for the edited items.");
+        }
+
+        return {
+          originalName,
+          quantity: parseQuantityInput(item.quantity),
+          unit: normalizeOptionalString(item.unit),
+          unitPriceAmountCents,
+          totalAmountCents,
+          category: item.category,
+        };
+      }),
+    },
+  };
+}
+
+function getConfirmReceiptErrorMessage(error: unknown): string {
+  if (error instanceof ApiError && error.code) {
+    return confirmReceiptErrorMessages[error.code] ?? getErrorMessage(error);
+  }
+
+  if (error instanceof Error && error.message === "Network request failed") {
+    return "Could not reach the backend. Check the connection and try again.";
+  }
+
+  return getErrorMessage(error);
+}
+
+const confirmReceiptErrorMessages: Record<string, string> = {
+  extraction_id_required: "This extraction is missing. Upload the receipt again.",
+  invalid_integer: "Enter valid totals before confirming the receipt.",
+  invalid_item_category: "Choose a valid category for each receipt item.",
+  invalid_item_total_amount_cents: "Enter a valid total for each receipt item.",
+  invalid_item_unit_price_amount_cents:
+    "Enter valid unit prices for the edited items.",
+  invalid_purchase_date: "Enter the purchase date in YYYY-MM-DD format.",
+  invalid_quantity: "Enter a valid quantity for each edited item.",
+  invalid_receipt_item: "One of the receipt items is invalid. Review the rows and try again.",
+  invalid_request_body: "The reviewed receipt data could not be sent. Try again.",
+  invalid_string: "Review the receipt fields and try again.",
+  item_original_name_required: "Each receipt item needs a product name.",
+  market_name_required: "Enter the market name before confirming.",
+  receipt_confirm_failed: "The receipt could not be saved. Try again.",
+  receipt_extraction_already_confirmed:
+    "This receipt was already confirmed. Upload it again if you need another record.",
+  receipt_extraction_expired: "This review expired after 24 hours. Upload the receipt again.",
+  receipt_extraction_not_completed:
+    "This extraction is not ready to be confirmed anymore. Upload the receipt again.",
+  receipt_extraction_not_confirmable:
+    "This extraction can no longer be confirmed. Upload the receipt again.",
+  receipt_extraction_not_found: "This extraction is no longer available. Upload the receipt again.",
+  receipt_items_required: "Add at least one receipt item before confirming.",
+};
 
 const styles = StyleSheet.create({
   backButton: {
@@ -336,6 +514,11 @@ const styles = StyleSheet.create({
     color: colors.textSecondary,
     fontSize: 13,
     fontWeight: "700",
+  },
+  footer: {
+    gap: spacing.md,
+    marginTop: spacing.xl,
+    paddingBottom: spacing.sm,
   },
   gridField: {
     flex: 1,
